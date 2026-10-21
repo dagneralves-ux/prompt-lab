@@ -344,11 +344,12 @@ dialog[open]{animation:pop .22s cubic-bezier(.2,.75,.2,1);display:flex;flex-dire
   <div class="db">
     <div class="seg2" id="aiMode" role="group" aria-label="O que fazer"><button type="button" data-m="create" aria-pressed="true">Criar do zero</button><button type="button" data-m="improve" aria-pressed="false">Melhorar</button><button type="button" data-m="translate" aria-pressed="false">Traduzir p/ inglês</button><button type="button" data-m="variants" aria-pressed="false">3 variações</button></div>
     <div class="field"><label for="aiIn" id="aiLbl">Descreva o que você precisa</label><textarea id="aiIn" rows="5" placeholder="Ex.: prompt para transformar foto de produto de lanchonete em imagem de anúncio"></textarea></div>
-    <div class="note" id="aiNoKey" hidden>Falta a chave do Gemini. Gere uma grátis em aistudio.google.com e cole em <b>Ajustes → Gemini</b>.</div>
+    <div class="note" id="aiNoKey" hidden>Sem chave de API: use <b>Abrir no Gemini (Pro)</b> (sua assinatura) ou cole uma chave grátis de aistudio.google.com em <b>Ajustes → Gemini</b>.</div>
     <div id="aiErr" role="alert" style="font-size:13px;font-weight:600;color:var(--red)"></div>
+    <div class="ds" id="aiWebHint" hidden>Pedido copiado! O Gemini abriu em outra aba: cole lá (Ctrl V), espere a resposta, copie e volte aqui em <b>Colar resposta</b>.</div>
     <div id="aiOutW" hidden><div class="lbl">Resultado <span class="counter" id="aiCnt"></span></div><div class="code" id="aiOut" tabindex="0" style="max-height:34vh"></div></div>
   </div>
-  <div class="df"><button type="button" class="btn" data-act="ai-copy" id="aiCopy" hidden>Copiar</button><button type="button" class="btn primary" data-act="ai-use" id="aiUse" hidden>Usar no editor</button><button class="btn primary" type="submit" id="aiGo"><svg class="ic" aria-hidden="true"><use href="#i-sparkle"/></svg>Gerar</button></div>
+  <div class="df"><button type="button" class="btn" data-act="ai-web" id="aiWeb" title="Copia o pedido e abre o Gemini da sua assinatura Pro">Abrir no Gemini (Pro)</button><button type="button" class="btn" data-act="ai-paste" id="aiPaste" title="Cola aqui a resposta que você copiou do Gemini">Colar resposta</button><button type="button" class="btn" data-act="ai-copy" id="aiCopy" hidden>Copiar</button><button type="button" class="btn primary" data-act="ai-use" id="aiUse" hidden>Usar no editor</button><button class="btn primary" type="submit" id="aiGo"><svg class="ic" aria-hidden="true"><use href="#i-sparkle"/></svg>Gerar</button></div>
 </form></dialog>
 
 <!-- Configurações -->
@@ -752,6 +753,9 @@ document.addEventListener('click',e=>{
     case'h-prev':{const p=byId(U.histId),v=p?.versions[+t.dataset.i];if(v){$('dHist').close();$('vTitle2').textContent=v.title+' (versão antiga)';$('vMeta').innerHTML=`<span class="badge">${fmtDate(v.ts)}</span>`;$('vCode').textContent=v.content;$('vNotes').textContent='';$('vTags').innerHTML='';U.viewing=U.histId;openDlg('dView')}break}
     case'h-rest':{const p=byId(U.histId),v=p?.versions[+t.dataset.i];if(!v)break;$('dHist').close();mutate(()=>{p.versions.unshift({ts:p.updatedAt,title:p.title,content:p.content});p.versions=p.versions.slice(0,15);p.title=v.title;p.content=v.content;p.updatedAt=nowISO();p.mt=Date.now()},'Versão restaurada.');break}
     case'ai':window._aiFromEditor=false;openAI('create');break;
+    case'ai-web':{const v=$('aiIn').value.trim();if(!v){$('aiErr').textContent='Escreva algo primeiro.';break}$('aiErr').textContent='';const full=AIS[aiMode]+'\n\n--- TEXTO DO USUÁRIO ---\n'+v;
+      copyText(full).then(()=>{$('aiWebHint').hidden=false;window.open('https://gemini.google.com/app','_blank','noopener');toast('Pedido copiado. Cole no Gemini.')}).catch(()=>{$('aiErr').textContent='Não consegui copiar. Tente de novo.'});break}
+    case'ai-paste':{(navigator.clipboard&&navigator.clipboard.readText?navigator.clipboard.readText():Promise.reject()).then(t=>{if(!t||!t.trim())throw 0;showAiResult(t);$('aiErr').textContent=''}).catch(()=>{$('aiErr').textContent='Não consegui ler a área de transferência. Permita o acesso ou copie a resposta de novo.'});break}
     case'ai-copy':copyText(aiResult).then(()=>toast('Copiado.'));break;
     case'ai-use':{const fromEd=window._aiFromEditor&&$('dEdit').open;$('dAI').close();if(fromEd){$('fContent').value=aiResult.split(/\n---\n/)[0].trim();updateCount();renderEdTags();toast('Texto aplicado. Revise e salve.')}else{openEditor(null,{title:'',content:aiResult.split(/\n---\n/)[0].trim()})}window._aiFromEditor=false;break}
     case'ai-models':{G.key=$('gKey').value.trim();lsw(GK,G);const m=$('gMsg');if(!G.key){m.style.color='var(--red)';m.textContent='Cole a chave primeiro.';break}m.style.color='var(--muted)';m.textContent='Buscando…';
@@ -795,7 +799,8 @@ const AIS={
 const AILB={create:['Descreva o que você precisa','Ex.: prompt para transformar foto de produto de lanchonete em imagem de anúncio'],improve:['Cole o prompt a melhorar',''],translate:['Cole o prompt a traduzir',''],variants:['Cole o prompt base','']};
 function setAiMode(m){aiMode=m;document.querySelectorAll('#aiMode button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.m===m)));$('aiLbl').textContent=AILB[m][0];$('aiIn').placeholder=AILB[m][1]}
 document.getElementById('aiMode').addEventListener('click',e=>{const b=e.target.closest('button');if(b)setAiMode(b.dataset.m)});
-function openAI(mode='create',text=''){setAiMode(mode);$('aiIn').value=text;$('aiErr').textContent='';$('aiOutW').hidden=true;['aiCopy','aiUse'].forEach(i=>$(i).hidden=true);$('aiNoKey').hidden=!!G.key;openDlg('dAI');setTimeout(()=>$('aiIn').focus(),40)}
+function showAiResult(t){aiResult=t.replace(/^```[a-z]*\n?|```$/g,'').trim();$('aiOut').textContent=aiResult;$('aiCnt').textContent=`${aiResult.length.toLocaleString('pt-BR')} caracteres`;$('aiOutW').hidden=false;$('aiCopy').hidden=false;$('aiUse').hidden=false;$('aiUse').textContent=$('dEdit').open?'Substituir no editor':'Usar no editor'}
+function openAI(mode='create',text=''){$('aiWebHint').hidden=true;setAiMode(mode);$('aiIn').value=text;$('aiErr').textContent='';$('aiOutW').hidden=true;['aiCopy','aiUse'].forEach(i=>$(i).hidden=true);$('aiNoKey').hidden=!!G.key;openDlg('dAI');setTimeout(()=>$('aiIn').focus(),40)}
 async function gemini(system,user){
   if(!G.key)throw new Error('Falta a chave do Gemini.');
   const send=()=>fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(G.model||'gemini-flash-latest')}:generateContent`,{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':G.key},body:JSON.stringify({systemInstruction:{parts:[{text:system}]},contents:[{role:'user',parts:[{text:user}]}],generationConfig:{temperature:.7,maxOutputTokens:2048}})});
@@ -808,9 +813,9 @@ async function gemini(system,user){
 }
 $('fAI').addEventListener('submit',async e=>{
   e.preventDefault();if(aiBusy)return;const v=$('aiIn').value.trim();$('aiErr').textContent='';
-  if(!G.key){$('aiNoKey').hidden=false;return}if(!v){$('aiErr').textContent='Escreva algo primeiro.';return}
+  if(!G.key){$('aiNoKey').hidden=false;$('aiErr').textContent='Sem chave: use "Abrir no Gemini (Pro)".';return}if(!v){$('aiErr').textContent='Escreva algo primeiro.';return}
   aiBusy=true;window._aiRetry=n=>{$('aiGo').innerHTML='<i class="spin"></i> Gemini ocupado, tentando de novo ('+n+'/3)…'};$('aiGo').disabled=true;$('aiGo').innerHTML='<i class="spin"></i> Gerando…';
-  try{aiResult=await gemini(AIS[aiMode],v);$('aiOut').textContent=aiResult;$('aiCnt').textContent=`${aiResult.length.toLocaleString('pt-BR')} caracteres`;$('aiOutW').hidden=false;$('aiCopy').hidden=false;$('aiUse').hidden=false;$('aiUse').textContent=$('dEdit').open?'Substituir no editor':'Usar no editor'}
+  try{showAiResult(await gemini(AIS[aiMode],v))}
   catch(err){$('aiErr').textContent=err instanceof TypeError?'Sem conexão com o Gemini. Confira a internet.':err.message}
   finally{aiBusy=false;$('aiGo').disabled=false;$('aiGo').innerHTML=ic('sparkle')+' Gerar de novo'}
 });
