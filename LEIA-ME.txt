@@ -1,0 +1,6 @@
+PROMPT LAB v3 - como usar
+1) GitHub Pages: suba TODOS estes arquivos na raiz do repositorio (index.html com esse nome exato). NAO suba o backup .json.
+2) Abra o site, clique no icone de ajustes > "Restaurar / importar" e escolha seu backup .json. (Seus dados antigos tambem sao migrados sozinhos se abrir no mesmo navegador/endereco antigo - importe o backup para garantir.)
+3) Celular: abra o link e "Instalar app / Adicionar a tela inicial".
+4) Sincronizar PC e celular (opcional): rode Supabase_promptlab.sql no SQL Editor e entre em Ajustes com URL, chave publica, e-mail e senha.
+5) IMPORTANTE: tire a senha do admin do DS News de dentro do Prompt Lab (use um gerenciador de senhas) e, se usa a mesma em outro lugar, troque.
