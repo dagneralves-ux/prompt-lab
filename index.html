@@ -798,9 +798,10 @@ document.getElementById('aiMode').addEventListener('click',e=>{const b=e.target.
 function openAI(mode='create',text=''){setAiMode(mode);$('aiIn').value=text;$('aiErr').textContent='';$('aiOutW').hidden=true;['aiCopy','aiUse'].forEach(i=>$(i).hidden=true);$('aiNoKey').hidden=!!G.key;openDlg('dAI');setTimeout(()=>$('aiIn').focus(),40)}
 async function gemini(system,user){
   if(!G.key)throw new Error('Falta a chave do Gemini.');
-  const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(G.model||'gemini-flash-latest')}:generateContent`,{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':G.key},body:JSON.stringify({systemInstruction:{parts:[{text:system}]},contents:[{role:'user',parts:[{text:user}]}],generationConfig:{temperature:.7,maxOutputTokens:2048}})});
-  const j=await r.json().catch(()=>({}));
-  if(!r.ok){const m=j.error?.message||('HTTP '+r.status);throw new Error(r.status===429?'Limite de uso do plano grátis atingido. Tente de novo em instantes.':r.status===400&&/API key/i.test(m)?'Chave inválida. Confira em Ajustes → Gemini.':r.status===404?'Modelo não encontrado. Em Ajustes → Gemini, clique em "Buscar modelos disponíveis".':m.slice(0,160))}
+  const send=()=>fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(G.model||'gemini-flash-latest')}:generateContent`,{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':G.key},body:JSON.stringify({systemInstruction:{parts:[{text:system}]},contents:[{role:'user',parts:[{text:user}]}],generationConfig:{temperature:.7,maxOutputTokens:2048}})});
+  let r,j;
+  for(let i=0;i<4;i++){r=await send();j=await r.json().catch(()=>({}));if(r.status!==503&&!(r.status===500))break;if(i<3){window._aiRetry&&window._aiRetry(i+1);await new Promise(z=>setTimeout(z,1500*(i+1)))}}
+  if(!r.ok){const m=j.error?.message||('HTTP '+r.status);throw new Error(r.status===429?(/pro/i.test(G.model)?'O modelo Pro não tem cota no plano grátis. Use um modelo Flash (botão Buscar modelos disponíveis).':'Limite de uso do plano grátis atingido. Espere um minuto e tente de novo.'):r.status===503?'O Gemini está sobrecarregado agora (não é problema seu). Tente de novo em alguns minutos.':r.status===400&&/API key/i.test(m)?'Chave inválida. Confira em Ajustes → Gemini.':r.status===404?'Modelo não encontrado. Em Ajustes → Gemini, clique em "Buscar modelos disponíveis".':m.slice(0,160))}
   const t=(j.candidates?.[0]?.content?.parts||[]).map(x=>x.text||'').join('').trim();
   if(!t)throw new Error(j.promptFeedback?.blockReason?'O Gemini recusou esse pedido.':'Resposta vazia. Tente de novo.');
   return t.replace(/^```[a-z]*\n?|```$/g,'').trim();
@@ -808,7 +809,7 @@ async function gemini(system,user){
 $('fAI').addEventListener('submit',async e=>{
   e.preventDefault();if(aiBusy)return;const v=$('aiIn').value.trim();$('aiErr').textContent='';
   if(!G.key){$('aiNoKey').hidden=false;return}if(!v){$('aiErr').textContent='Escreva algo primeiro.';return}
-  aiBusy=true;$('aiGo').disabled=true;$('aiGo').innerHTML='<i class="spin"></i> Gerando…';
+  aiBusy=true;window._aiRetry=n=>{$('aiGo').innerHTML='<i class="spin"></i> Gemini ocupado, tentando de novo ('+n+'/3)…'};$('aiGo').disabled=true;$('aiGo').innerHTML='<i class="spin"></i> Gerando…';
   try{aiResult=await gemini(AIS[aiMode],v);$('aiOut').textContent=aiResult;$('aiCnt').textContent=`${aiResult.length.toLocaleString('pt-BR')} caracteres`;$('aiOutW').hidden=false;$('aiCopy').hidden=false;$('aiUse').hidden=false;$('aiUse').textContent=$('dEdit').open?'Substituir no editor':'Usar no editor'}
   catch(err){$('aiErr').textContent=err instanceof TypeError?'Sem conexão com o Gemini. Confira a internet.':err.message}
   finally{aiBusy=false;$('aiGo').disabled=false;$('aiGo').innerHTML=ic('sparkle')+' Gerar de novo'}
