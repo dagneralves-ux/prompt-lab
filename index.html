@@ -556,7 +556,7 @@ dialog[open]{animation:pop .22s cubic-bezier(.2,.75,.2,1);display:flex;flex-dire
       <div class="fchips" id="mChips" role="group" aria-label="Filtrar por modelo" hidden></div>
       <div class="cards" id="cards"></div>
       <div class="empty" id="empty"><div class="eb"><div class="eicon"><svg class="ic" style="width:32px;height:32px" aria-hidden="true"><use href="#i-sparkle"/></svg></div><h2 id="emTitle">Sua biblioteca está vazia</h2><p id="emText">Salve aquele prompt que você vive procurando de novo.</p><button class="btn primary" data-act="new" id="emBtn"><svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg>Novo prompt</button></div></div>
-      <div class="fbar"><span id="fbState">Pronto</span><span>Prompt Lab · v6.1</span></div>
+      <div class="fbar"><span id="fbState">Pronto</span><span>Prompt Lab · v6.2</span></div>
     </section>
   </div>
 </main>
@@ -1004,11 +1004,15 @@ function setSyncUI(state,txt){$('stDot').className='pdot'+(state?' '+state:'');$
 async function sb(path,{method='GET',body,headers={},auth=true}={}){
   if(auth)await ensureToken();
   const r=await fetch(sync.url.replace(/\/+$/,'')+path,{method,headers:{apikey:sync.key,'Content-Type':'application/json',...(auth?{Authorization:'Bearer '+sync.session.access_token}:{}),...headers},body:body?JSON.stringify(body):undefined});
+  if(r.status===401&&auth&&!arguments[1]?.retried){await ensureToken(true);return sb(path,{...(arguments[1]||{}),retried:true})}
   if(!r.ok){const t=await r.text().catch(()=>'');const e=new Error(t||('HTTP '+r.status));e.status=r.status;throw e}
   return r.status===204?null:r.json().catch(()=>null);
 }
 function storeSession(j){sync.session={access_token:j.access_token,refresh_token:j.refresh_token,expires_at:Date.now()+(j.expires_in||3600)*1000,user_id:j.user?.id||sync.session?.user_id};saveSync()}
-async function ensureToken(){if(sync.session.expires_at-60000>Date.now())return;storeSession(await sb('/auth/v1/token?grant_type=refresh_token',{method:'POST',body:{refresh_token:sync.session.refresh_token},auth:false}))}
+let tokP=null;
+async function ensureToken(force){if(!force&&sync.session.expires_at-60000>Date.now())return;
+  if(!tokP)tokP=(async()=>{const rt=sync.session.refresh_token;try{storeSession(await sb('/auth/v1/token?grant_type=refresh_token',{method:'POST',body:{refresh_token:rt},auth:false}))}catch(e){await new Promise(r=>setTimeout(r,1200));if(sync.session.refresh_token!==rt)return;throw e}})().finally(()=>{tokP=null});
+  return tokP}
 function scheduleSync(){if(!sync?.session)return;clearTimeout(syncTimer);syncTimer=setTimeout(()=>syncNow(true),1500)}
 async function syncNow(quiet){
   if(!sync?.session||syncBusy)return;syncBusy=true;setSyncUI('','Sincronizando…');
