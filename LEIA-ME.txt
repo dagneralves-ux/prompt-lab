@@ -4,3 +4,6 @@ PROMPT LAB v3 - como usar
 3) Celular: abra o link e "Instalar app / Adicionar a tela inicial".
 4) Sincronizar PC e celular (opcional): rode Supabase_promptlab.sql no SQL Editor e entre em Ajustes com URL, chave publica, e-mail e senha.
 5) IMPORTANTE: tire a senha do admin do DS News de dentro do Prompt Lab (use um gerenciador de senhas) e, se usa a mesma em outro lugar, troque.
+
+v3.2: visual novo (preto com vermelho, cartões em forma de pasta com o botão Copiar na aba). O cartão vermelho é o último prompt usado. Apenas tema escuro. Dados e backup não mudaram; suba index.html, sw.js e os ícones.
+v3.3: filtros rápidos em pílulas no topo; botão Copiar vira ✓ ao copiar; setas/Enter/Espaço no teclado; prompt abre em painel lateral; busca destaca o trecho; brilho e inclinação nos cartões; contadores animados; 5 pontos de uso; 'Fixar em destaque' no menu ⋯ (o cartão vermelho fica o fixado, ou o último usado); tela de abertura. Efeitos respeitam 'reduzir movimento'.
